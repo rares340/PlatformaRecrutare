@@ -1,7 +1,7 @@
 .idea/
 .vscode/
 *.class
-*.jar
+#*.jar
 bin/
 build/
 out/
