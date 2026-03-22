@@ -14,8 +14,8 @@ id_companie int,
 titlu varchar(100) not null,
 descriere text,
 oras varchar(50),
-salariu_min decimal(10,2),
-salariu_max decimal(10,2),
+salariu_min int,
+salariu_max int,
 foreign key (id_companie) references Companii(id_companie) on delete cascade
 );
 
@@ -81,8 +81,17 @@ foreign key (id_aplicatie) references Aplicatii(id_aplicatie) on delete cascade
 create table if not exists Oferte(
 id_oferta int primary key auto_increment,
 id_aplicatie int unique,
-salariu_oferit decimal(10,2),
+salariu_oferit int,
 data_expirare date,
 status_oferta enum('Trimisa','Acceptata','Refuzata','Expirata') default 'Trimisa',
 foreign key (id_aplicatie) references Aplicatii(id_aplicatie) on delete cascade
+);
+
+create table if not exists Utilizatori(
+id_utilizator int primary key auto_increment,
+email varchar(50) unique not null,
+parola varchar (50) not null,
+rol enum('candidat','hr') not null,
+id_candidat int unique,
+foreign key (id_candidat) references Candidati(id_candidat) on delete cascade
 );

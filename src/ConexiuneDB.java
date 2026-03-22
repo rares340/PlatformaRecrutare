@@ -4,16 +4,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 public class ConexiuneDB {
-    public static void main(String[] args) {
-        String url = "jdbc:mysql://localhost:3306/platforma_recrutare";
-        String user = "root";
-        String password = "";
+        private static String url = "jdbc:mysql://localhost:3306/platforma_recrutare";
+        private static String user = "root";
+        private static String password = "";
 
-        try (Connection connection = DriverManager.getConnection(url,user,password)){
-            System.out.println("Conexiune reusita");
-        } catch (SQLException e){
-            System.out.println("Eroare");
-            e.printStackTrace();
+        public static Connection getConnection() throws SQLException {
+            return DriverManager.getConnection(url, user, password);
         }
-    }
 }
