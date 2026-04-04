@@ -10,34 +10,53 @@ import java.sql.Statement;
 
 public class HRFrame extends JFrame {
     private JTable tabelJoburi;
-    private DefaultTableModel modelTabel;
-    private JButton btnAdaugaJob;
-    private JButton btnRefresh;
+    private DefaultTableModel modelTabelJoburi;
+
+    private JTable tabelAplicatii;
+    private DefaultTableModel modelTabelAplicatii;
 
     public HRFrame() {
         setTitle("Panou de Control HR");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(600,400);
+        setSize(600,600);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10,10));
 
-        JPanel panouSus = new JPanel();
-        panouSus.setLayout(new FlowLayout(FlowLayout.CENTER));
+        JLabel lblHeader = new JLabel("HR");
+        lblHeader.setFont(new Font("Arial", Font.BOLD, 20));
+        lblHeader.setBorder(BorderFactory.createEmptyBorder(15,10,15,10));
+        add(lblHeader,BorderLayout.NORTH);
 
-        btnAdaugaJob = new JButton("Adauga Job Nou");
-        btnRefresh = new JButton("Refresh Tabel");
+        JPanel panouJoburi = PanouJoburi();
+        JPanel panouAplicatii = PanouAplicatii();
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT,panouJoburi,panouAplicatii);
+        splitPane.setDividerLocation(300);
+        splitPane.setOneTouchExpandable(true);
+
+        add(splitPane,BorderLayout.CENTER);
+    }
+
+    private JPanel PanouJoburi(){
+        JPanel panou = new JPanel(new BorderLayout(5,5));
+        panou.setBorder(BorderFactory.createTitledBorder("Joburi"));
+
+        JPanel panouSus = new JPanel();
+        panouSus.setLayout(new FlowLayout(FlowLayout.LEFT));
+        JButton btnAdaugaJob = new JButton("Adauga Job Nou");
+        JButton btnRefresh = new JButton("Refresh Tabel");
         btnAdaugaJob.setFocusable(false);
         btnRefresh.setFocusable(false);
 
         panouSus.add(btnAdaugaJob);
         panouSus.add(btnRefresh);
-        add(panouSus,BorderLayout.NORTH);
+        panou.add(panouSus,BorderLayout.NORTH);
 
-        String[] coloane = {"ID Job","Titlu","Oras","Salariu Min", "Salariu Max"};
-        modelTabel = new DefaultTableModel(coloane,0);
-        tabelJoburi = new JTable(modelTabel);
-        tabelJoburi.setRowSelectionAllowed(false);
-        tabelJoburi.setCellSelectionEnabled(true);
+        String[] coloane = {"ID","Titlu","Oras","Salariu Min", "Salariu Max"};
+        modelTabelJoburi = new DefaultTableModel(coloane,0);
+        tabelJoburi = new JTable(modelTabelJoburi);
+        //tabelJoburi.setRowSelectionAllowed(false);
+        //tabelJoburi.setCellSelectionEnabled(true);
+        tabelJoburi.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         tabelJoburi.getTableHeader().setReorderingAllowed(false);
         tabelJoburi.getTableHeader().setResizingAllowed(false);
 
@@ -48,15 +67,13 @@ public class HRFrame extends JFrame {
         tabelJoburi.getColumnModel().getColumn(3).setPreferredWidth(90);
         tabelJoburi.getColumnModel().getColumn(4).setPreferredWidth(90);
 
-
         JScrollPane scrollPane = new JScrollPane(tabelJoburi);
-        add(scrollPane,BorderLayout.CENTER);
-
-        incarcaJoburiDinDB();
+        panou.add(scrollPane,BorderLayout.CENTER);
 
         btnAdaugaJob.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e){
+
                 JOptionPane.showMessageDialog(HRFrame.this,"Adauga Job Nou");
             }
         });
@@ -65,12 +82,90 @@ public class HRFrame extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e){
                 incarcaJoburiDinDB();
+                incarcaAplicatiiDinDB();
             }
         });
+
+        incarcaJoburiDinDB();
+        return panou;
+    }
+
+    private JPanel PanouAplicatii(){
+        JPanel panou = new JPanel(new BorderLayout(5,5));
+        panou.setBorder(BorderFactory.createTitledBorder("Aplicatii primite"));
+
+        JPanel panouSus = new JPanel();
+        panouSus.setLayout(new FlowLayout(FlowLayout.LEFT));
+        JButton btnVeziProfil = new JButton("Vezi Profil");
+        JButton btnSchimbaStatus = new JButton("Schimba Status");
+
+        btnVeziProfil.setFocusable(false);
+        btnSchimbaStatus.setFocusable(false);
+        panouSus.add(btnVeziProfil);
+        panouSus.add(btnSchimbaStatus);
+        panou.add(panouSus,BorderLayout.NORTH);
+
+        String[] coloane = {"ID","Nume Candidat","Job Aplicat","Data","Status"};
+        modelTabelAplicatii = new DefaultTableModel(coloane,0);
+        tabelAplicatii = new JTable(modelTabelAplicatii);
+
+        tabelAplicatii.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        tabelAplicatii.getTableHeader().setReorderingAllowed(false);
+        tabelAplicatii.getTableHeader().setResizingAllowed(false);
+
+        tabelAplicatii.getColumnModel().getColumn(0).setPreferredWidth(50);
+        tabelAplicatii.getColumnModel().getColumn(1).setPreferredWidth(250);
+        tabelAplicatii.getColumnModel().getColumn(2).setPreferredWidth(250);
+        tabelAplicatii.getColumnModel().getColumn(3).setPreferredWidth(120);
+        tabelAplicatii.getColumnModel().getColumn(4).setPreferredWidth(90);
+
+        JScrollPane scrollPane = new JScrollPane(tabelAplicatii);
+        panou.add(scrollPane,BorderLayout.CENTER);
+        panou.add(scrollPane,BorderLayout.CENTER);
+
+        btnVeziProfil.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e){
+
+            }
+        });
+        btnSchimbaStatus.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e){}
+        });
+
+        incarcaAplicatiiDinDB();
+        return  panou;
+    }
+
+    private void incarcaAplicatiiDinDB(){
+        modelTabelAplicatii.setRowCount(0);
+
+        String sql = "SELECT a.id_aplicatie,CONCAT(c.nume,' ',c.prenume) AS nume_complet, j.titlu, a.data_aplicarii, a.status " +
+                     "FROM Aplicatii a JOIN Candidati c ON a.id_candidat=c.id_candidat "+
+                     "JOIN Joburi j ON a.id_job=j.id_job WHERE j.id_companie = 1 ORDER BY a.data_aplicarii DESC";
+
+        try(Connection conn = ConexiuneDB.getConnection();
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)){
+            while(rs.next()){
+                Object[] rand ={
+                        rs.getInt("id_aplicatie"),
+                        rs.getString("nume_complet"),
+                        rs.getString("titlu"),
+                        rs.getTimestamp("data_aplicarii"),
+                        rs.getString("status")
+                };
+                modelTabelAplicatii.addRow(rand);
+            }
+        } catch (SQLException e){
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,"Eroare incarcare Aplicatii","Eroare",JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void incarcaJoburiDinDB(){
-        modelTabel.setRowCount(0);
+        modelTabelJoburi.setRowCount(0);
 
         String sql = "SELECT id_job,titlu,oras,salariu_min,salariu_max FROM Joburi";
 
@@ -86,11 +181,11 @@ public class HRFrame extends JFrame {
                 int salMax = rs.getInt("salariu_max");
 
                 Object[] randNou = {id,titlu,oras,salMin,salMax};
-                modelTabel.addRow(randNou);
+                modelTabelJoburi.addRow(randNou);
             }
         } catch (SQLException ex){
             ex.printStackTrace();
-            JOptionPane.showMessageDialog(this,"Eroare la aducerea datelor din DB");
+            JOptionPane.showMessageDialog(this,"Eroare la aducerea datelor din DB","Eroare",JOptionPane.ERROR_MESSAGE);
         }
     }
 }
