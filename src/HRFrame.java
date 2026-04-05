@@ -15,6 +15,9 @@ public class HRFrame extends JFrame {
     private JTable tabelAplicatii;
     private DefaultTableModel modelTabelAplicatii;
 
+    private JButton btnAdaugaJob;
+    private JButton btnRefresh;
+
     public HRFrame() {
         setTitle("Panou de Control HR");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -22,10 +25,23 @@ public class HRFrame extends JFrame {
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10,10));
 
-        JLabel lblHeader = new JLabel("HR");
+        JPanel panouSus = new JPanel(new BorderLayout(5,10));
+        panouSus.setLayout(new FlowLayout(FlowLayout.LEFT));
+
+        String numeCompanie = getCompany();
+        JLabel lblHeader = new JLabel("Companie: "+numeCompanie);
         lblHeader.setFont(new Font("Arial", Font.BOLD, 20));
         lblHeader.setBorder(BorderFactory.createEmptyBorder(15,10,15,10));
-        add(lblHeader,BorderLayout.NORTH);
+        panouSus.add(lblHeader,BorderLayout.NORTH);
+
+        btnAdaugaJob = new JButton("Adauga Job Nou");
+        btnRefresh = new JButton("Refresh");
+        btnAdaugaJob.setFocusable(false);
+        btnRefresh.setFocusable(false);
+
+        panouSus.add(btnAdaugaJob);
+        panouSus.add(btnRefresh);
+        add(panouSus,BorderLayout.NORTH);
 
         JPanel panouJoburi = PanouJoburi();
         JPanel panouAplicatii = PanouAplicatii();
@@ -34,22 +50,27 @@ public class HRFrame extends JFrame {
         splitPane.setOneTouchExpandable(true);
 
         add(splitPane,BorderLayout.CENTER);
+
+        btnAdaugaJob.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e){
+
+                JOptionPane.showMessageDialog(HRFrame.this,"Adauga Job Nou");
+            }
+        });
+
+        btnRefresh.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e){
+                incarcaJoburiDinDB();
+                incarcaAplicatiiDinDB();
+            }
+        });
     }
 
     private JPanel PanouJoburi(){
         JPanel panou = new JPanel(new BorderLayout(5,5));
         panou.setBorder(BorderFactory.createTitledBorder("Joburi"));
-
-        JPanel panouSus = new JPanel();
-        panouSus.setLayout(new FlowLayout(FlowLayout.LEFT));
-        JButton btnAdaugaJob = new JButton("Adauga Job Nou");
-        JButton btnRefresh = new JButton("Refresh Tabel");
-        btnAdaugaJob.setFocusable(false);
-        btnRefresh.setFocusable(false);
-
-        panouSus.add(btnAdaugaJob);
-        panouSus.add(btnRefresh);
-        panou.add(panouSus,BorderLayout.NORTH);
 
         String[] coloane = {"ID","Titlu","Oras","Salariu Min", "Salariu Max"};
         modelTabelJoburi = new DefaultTableModel(coloane,0);
@@ -69,22 +90,6 @@ public class HRFrame extends JFrame {
 
         JScrollPane scrollPane = new JScrollPane(tabelJoburi);
         panou.add(scrollPane,BorderLayout.CENTER);
-
-        btnAdaugaJob.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e){
-
-                JOptionPane.showMessageDialog(HRFrame.this,"Adauga Job Nou");
-            }
-        });
-
-        btnRefresh.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e){
-                incarcaJoburiDinDB();
-                incarcaAplicatiiDinDB();
-            }
-        });
 
         incarcaJoburiDinDB();
         return panou;
@@ -121,7 +126,6 @@ public class HRFrame extends JFrame {
 
         JScrollPane scrollPane = new JScrollPane(tabelAplicatii);
         panou.add(scrollPane,BorderLayout.CENTER);
-        panou.add(scrollPane,BorderLayout.CENTER);
 
         btnVeziProfil.addActionListener(new ActionListener() {
             @Override
@@ -136,6 +140,22 @@ public class HRFrame extends JFrame {
 
         incarcaAplicatiiDinDB();
         return  panou;
+    }
+
+    private String getCompany(){
+
+        String sql="SELECT c.nume FROM Companii c JOIN Utilizatori u ON c.id_companie=u.id_companie";
+        String numeCompanie="";
+        try(Connection conn = ConexiuneDB.getConnection();
+        Statement stmt = conn.createStatement();
+        ResultSet rs = stmt.executeQuery(sql)){
+            rs.next();
+            numeCompanie = rs.getString("nume");
+        } catch (SQLException e){
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,"Eroare incarcare nume Companie","Eroare",JOptionPane.ERROR_MESSAGE);
+        }
+        return numeCompanie;
     }
 
     private void incarcaAplicatiiDinDB(){
