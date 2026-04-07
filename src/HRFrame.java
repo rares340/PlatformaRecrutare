@@ -3,12 +3,11 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 
 public class HRFrame extends JFrame {
+    private int idCompanie;
+
     private JTable tabelJoburi;
     private DefaultTableModel modelTabelJoburi;
 
@@ -18,7 +17,8 @@ public class HRFrame extends JFrame {
     private JButton btnAdaugaJob;
     private JButton btnRefresh;
 
-    public HRFrame() {
+    public HRFrame(int idCompanie) {
+        this.idCompanie = idCompanie;
         setTitle("Panou de Control HR");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(600,600);
@@ -144,13 +144,17 @@ public class HRFrame extends JFrame {
 
     private String getCompany(){
 
-        String sql="SELECT c.nume FROM Companii c JOIN Utilizatori u ON c.id_companie=u.id_companie";
+        String sql="SELECT nume FROM Companii WHERE id_companie = ?";
         String numeCompanie="";
         try(Connection conn = ConexiuneDB.getConnection();
-        Statement stmt = conn.createStatement();
-        ResultSet rs = stmt.executeQuery(sql)){
-            rs.next();
+            PreparedStatement pstmt = conn.prepareStatement(sql)){
+
+            pstmt.setInt(1,this.idCompanie);
+            ResultSet rs = pstmt.executeQuery();
+
+            if(rs.next()){
             numeCompanie = rs.getString("nume");
+            }
         } catch (SQLException e){
             e.printStackTrace();
             JOptionPane.showMessageDialog(this,"Eroare incarcare nume Companie","Eroare",JOptionPane.ERROR_MESSAGE);
@@ -163,11 +167,13 @@ public class HRFrame extends JFrame {
 
         String sql = "SELECT a.id_aplicatie,CONCAT(c.nume,' ',c.prenume) AS nume_complet, j.titlu, a.data_aplicarii, a.status " +
                      "FROM Aplicatii a JOIN Candidati c ON a.id_candidat=c.id_candidat "+
-                     "JOIN Joburi j ON a.id_job=j.id_job WHERE j.id_companie = 1 ORDER BY a.data_aplicarii DESC";
+                     "JOIN Joburi j ON a.id_job=j.id_job WHERE j.id_companie = ? ORDER BY a.data_aplicarii DESC";
 
         try(Connection conn = ConexiuneDB.getConnection();
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(sql)){
+            PreparedStatement pstmt = conn.prepareStatement(sql)){
+
+            pstmt.setInt(1,this.idCompanie);
+            ResultSet rs = pstmt.executeQuery();
             while(rs.next()){
                 Object[] rand ={
                         rs.getInt("id_aplicatie"),
@@ -187,11 +193,13 @@ public class HRFrame extends JFrame {
     private void incarcaJoburiDinDB(){
         modelTabelJoburi.setRowCount(0);
 
-        String sql = "SELECT id_job,titlu,oras,salariu_min,salariu_max FROM Joburi";
+        String sql = "SELECT id_job,titlu,oras,salariu_min,salariu_max FROM Joburi WHERE id_companie = ?";
 
         try(Connection conn = ConexiuneDB.getConnection();
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(sql)){
+            PreparedStatement pstmt = conn.prepareStatement(sql)){
+
+            pstmt.setInt(1,this.idCompanie);
+            ResultSet rs = pstmt.executeQuery();
 
             while(rs.next()){
                 int id = rs.getInt("id_job");

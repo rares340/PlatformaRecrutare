@@ -65,7 +65,8 @@ public class LoginFrame extends JFrame {
                 this.dispose();
 
                 if (rol.equals("hr")) {
-                    new HRFrame().setVisible(true);
+                    int idCompanie = rs.getInt("id_companie");
+                    new HRFrame(idCompanie).setVisible(true);
                 } else if (rol.equals("candidat")) {
                     int idCandidat = rs.getInt("id_candidat");
                     new CandidatFrame(idCandidat).setVisible(true);
@@ -81,9 +82,7 @@ public class LoginFrame extends JFrame {
     }
 
     public static void main(String[] args) {
-//        LoginFrame frame = new LoginFrame();
-//        frame.setVisible(true);
-        HRFrame frame = new HRFrame();
+        LoginFrame frame = new LoginFrame();
         frame.setVisible(true);
     }
 }

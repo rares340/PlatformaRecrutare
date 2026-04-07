@@ -93,5 +93,7 @@ email varchar(50) unique not null,
 parola varchar (50) not null,
 rol enum('candidat','hr') not null,
 id_candidat int unique,
-foreign key (id_candidat) references Candidati(id_candidat) on delete cascade
+id_companie int,
+foreign key (id_candidat) references Candidati(id_candidat) on delete cascade,
+foreign key (id_companie) references Companii(id_companie)
 );
