@@ -1,4 +1,5 @@
 import javax.swing.*;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -54,14 +55,19 @@ public class HRFrame extends JFrame {
         btnAdaugaJob.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e){
+                AdaugaJob dialog = new AdaugaJob(HRFrame.this,idCompanie);
+                dialog.setVisible(true);
 
-                JOptionPane.showMessageDialog(HRFrame.this,"Adauga Job Nou");
+                if(dialog.aFostSalvat()){
+                    btnRefresh.doClick();
+                }
             }
         });
 
         btnRefresh.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e){
+                tabelJoburi.clearSelection();
                 incarcaJoburiDinDB();
                 incarcaAplicatiiDinDB();
             }
@@ -90,6 +96,13 @@ public class HRFrame extends JFrame {
 
         JScrollPane scrollPane = new JScrollPane(tabelJoburi);
         panou.add(scrollPane,BorderLayout.CENTER);
+
+        tabelJoburi.getSelectionModel().addListSelectionListener(e -> {
+           if(!e.getValueIsAdjusting()&&tabelJoburi.getSelectedRow()!=-1){
+               int idJob = (int) tabelJoburi.getValueAt(tabelJoburi.getSelectedRow(),0);
+               incarcaAplicatiiPentruJob(idJob);
+           }
+        });
 
         incarcaJoburiDinDB();
         return panou;
@@ -130,12 +143,34 @@ public class HRFrame extends JFrame {
         btnVeziProfil.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e){
-
+                int randSelectat = tabelAplicatii.getSelectedRow();
+                if(randSelectat == -1){
+                    JOptionPane.showMessageDialog(HRFrame.this,"Selecteaza o aplicatie","Atentie",JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                int idAplicatie = (int)tabelAplicatii.getValueAt(randSelectat,0);
+                JOptionPane.showMessageDialog(HRFrame.this,"Aplicatia "+idAplicatie);
             }
         });
         btnSchimbaStatus.addActionListener(new ActionListener() {
             @Override
-            public void actionPerformed(ActionEvent e){}
+            public void actionPerformed(ActionEvent e){
+                int randSelectat = tabelAplicatii.getSelectedRow();
+                if(randSelectat == -1){
+                    JOptionPane.showMessageDialog(HRFrame.this,"Selecteaza o aplicatie","Atentie",JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                int idAplicatie = (int)tabelAplicatii.getValueAt(randSelectat,0);
+                String statusCurent = (String)tabelAplicatii.getValueAt(randSelectat,4);
+                String numeCandidat = (String)tabelAplicatii.getValueAt(randSelectat,1);
+
+                SchimbareStatus dialog = new SchimbareStatus(HRFrame.this,idAplicatie,numeCandidat,statusCurent);
+                dialog.setVisible(true);
+
+                if(dialog.aFostSalvat()){
+                    btnRefresh.doClick();
+                }
+            }
         });
 
         incarcaAplicatiiDinDB();
@@ -213,6 +248,34 @@ public class HRFrame extends JFrame {
             }
         } catch (SQLException ex){
             ex.printStackTrace();
+            JOptionPane.showMessageDialog(this,"Eroare la aducerea datelor din DB","Eroare",JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    public void incarcaAplicatiiPentruJob(int idJobSelectat){
+        modelTabelAplicatii.setRowCount(0);
+
+        String sql = "SELECT a.id_aplicatie, CONCAT(c.nume, ' ', c.prenume) AS nume_complet, j.titlu, a.data_aplicarii, a.status " +
+                "FROM Aplicatii a JOIN Candidati c ON a.id_candidat=c.id_candidat "+
+                "JOIN Joburi j ON a.id_job=j.id_job WHERE a.id_job = ? ORDER BY a.data_aplicarii DESC";
+
+        try(Connection conn = ConexiuneDB.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql)){
+            pstmt.setInt(1,idJobSelectat);
+            ResultSet rs = pstmt.executeQuery();
+
+            while(rs.next()){
+                Object[] rand={
+                        rs.getInt("id_aplicatie"),
+                        rs.getString("nume_complet"),
+                        rs.getString("titlu"),
+                        rs.getTimestamp("data_aplicarii"),
+                        rs.getString("status")
+                };
+                modelTabelAplicatii.addRow(rand);
+            }
+        }catch (SQLException e){
+            e.printStackTrace();
             JOptionPane.showMessageDialog(this,"Eroare la aducerea datelor din DB","Eroare",JOptionPane.ERROR_MESSAGE);
         }
     }
