@@ -80,7 +80,6 @@ public class LoginFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "Eroare la conectarea cu baza de date!", "Eroare", JOptionPane.ERROR_MESSAGE);
         }
     }
-
     public static void main(String[] args) {
         LoginFrame frame = new LoginFrame();
         frame.setVisible(true);

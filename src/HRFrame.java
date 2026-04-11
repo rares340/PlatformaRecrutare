@@ -116,11 +116,20 @@ public class HRFrame extends JFrame {
         panouSus.setLayout(new FlowLayout(FlowLayout.LEFT));
         JButton btnVeziProfil = new JButton("Vezi Profil");
         JButton btnSchimbaStatus = new JButton("Schimba Status");
+        JLabel lblCauta = new JLabel("Cauta abilitati:");
+        JTextField txtCauta = new JTextField(15);
+        JButton btnCauta = new JButton("Cauta");
 
         btnVeziProfil.setFocusable(false);
         btnSchimbaStatus.setFocusable(false);
+        btnCauta.setFocusable(false);
+
         panouSus.add(btnVeziProfil);
         panouSus.add(btnSchimbaStatus);
+        panouSus.add(lblCauta);
+        panouSus.add(txtCauta);
+        panouSus.add(btnCauta);
+
         panou.add(panouSus,BorderLayout.NORTH);
 
         String[] coloane = {"ID","Nume Candidat","Job Aplicat","Data","Status"};
@@ -140,6 +149,18 @@ public class HRFrame extends JFrame {
         JScrollPane scrollPane = new JScrollPane(tabelAplicatii);
         panou.add(scrollPane,BorderLayout.CENTER);
 
+        btnCauta.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e){
+                String cuvinteCheie = txtCauta.getText().trim();
+                if(cuvinteCheie.isEmpty()){
+                    incarcaAplicatiiDinDB();
+                } else{
+                    cautaAplicatiiDupaCV(cuvinteCheie);
+                }
+            }
+        });
+
         btnVeziProfil.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e){
@@ -149,7 +170,9 @@ public class HRFrame extends JFrame {
                     return;
                 }
                 int idAplicatie = (int)tabelAplicatii.getValueAt(randSelectat,0);
-                JOptionPane.showMessageDialog(HRFrame.this,"Aplicatia "+idAplicatie);
+
+                VeziProfil dialogProfil = new VeziProfil(HRFrame.this,idAplicatie);
+                dialogProfil.setVisible(true);
             }
         });
         btnSchimbaStatus.addActionListener(new ActionListener() {
@@ -279,4 +302,38 @@ public class HRFrame extends JFrame {
             JOptionPane.showMessageDialog(this,"Eroare la aducerea datelor din DB","Eroare",JOptionPane.ERROR_MESSAGE);
         }
     }
+
+    private void cautaAplicatiiDupaCV(String cuvinteCheie){
+        modelTabelAplicatii.setRowCount(0);
+
+        String sql = "SELECT a.id_aplicatie, CONCAT(c.nume, ' ',c.prenume) as nume_complet, j.titlu, a.data_aplicarii, a.status " +
+                "FROM Aplicatii a " +
+                "JOIN Candidati c ON a.id_candidat = c.id_candidat " +
+                "JOIN Joburi j ON a.id_job = j.id_job " +
+                "WHERE j.id_companie = ? AND MATCH(c.cv_text) AGAINST(? IN BOOLEAN MODE) " +
+                "ORDER BY a.data_aplicarii DESC";
+
+        try (Connection conn = ConexiuneDB.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1,this.idCompanie);
+            pstmt.setString(2,cuvinteCheie+"*");
+            ResultSet rs = pstmt.executeQuery();
+
+            while(rs.next()){
+                Object[] rand={
+                        rs.getInt("id_aplicatie"),
+                        rs.getString("nume_complet"),
+                        rs.getString("titlu"),
+                        rs.getTimestamp("data_aplicarii"),
+                        rs.getString("status")
+                };
+                modelTabelAplicatii.addRow(rand);
+            }
+        }catch (SQLException e){
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,"Eroare la cautarea in CV","Eroare",JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
 }
