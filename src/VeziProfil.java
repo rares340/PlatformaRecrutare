@@ -37,7 +37,7 @@ public class VeziProfil extends JDialog {
         txtCV.setEditable(false);
         txtCV.setLineWrap(true);
         txtCV.setWrapStyleWord(true);
-        panouCentru.add(txtCV, BorderLayout.CENTER);
+        panouCentru.add(new JScrollPane(txtCV), BorderLayout.CENTER);
 
         JButton btnInchide = new JButton("Inchide");
         JPanel panousJos = new JPanel();

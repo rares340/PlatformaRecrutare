@@ -51,6 +51,17 @@ public class CandidatFrame extends JFrame {
 
         add(tabbedPane,BorderLayout.CENTER);
 
+        btnProfil.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                ProfilCandidat dialogProfil = new ProfilCandidat(CandidatFrame.this,idCandidat);
+                dialogProfil.setVisible(true);
+
+            }
+        });
+
+
+
         incarcaAplicatiileMele();
         incarcaJoburi();
 
@@ -104,7 +115,7 @@ public class CandidatFrame extends JFrame {
         JButton btnDetalii  = new JButton("Vezi Detalii");
         btnDetalii.setFocusable(false);
         JButton btnAplica = new  JButton("Aplica");
-        btnAplica.setBackground(Color.GREEN);
+        btnAplica.setBackground(new Color(34, 139, 34));
         btnAplica.setForeground(Color.WHITE);
         btnAplica.setFocusable(false);
 
@@ -116,6 +127,39 @@ public class CandidatFrame extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
 
+            }
+        });
+
+        btnDetalii.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int rand = tabelJoburi.getSelectedRow();
+                if(rand==-1){
+                    JOptionPane.showMessageDialog(CandidatFrame.this,"Te rog sa selectezi un job","Atentie!",JOptionPane.INFORMATION_MESSAGE);
+                    return;
+                }
+                int idJob = (int) tabelJoburi.getValueAt(rand,0);
+
+                DetaliiJob dialogDetalii = new DetaliiJob(CandidatFrame.this,idCandidat,idJob);
+                dialogDetalii.setVisible(true);
+
+                if(dialogDetalii.aAplicatAcum()){
+                    incarcaAplicatiileMele();
+                }
+            }
+        });
+
+        btnAplica.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int rand = tabelJoburi.getSelectedRow();
+                if(rand==-1){
+                    JOptionPane.showMessageDialog(CandidatFrame.this,"Te rog sa alegi un job","Atentie!",JOptionPane.INFORMATION_MESSAGE);
+                }
+                int idJob = (int) tabelJoburi.getValueAt(rand,0);
+
+                aplicaLaJob(idJob);
+                incarcaAplicatiileMele();
             }
         });
 
@@ -175,6 +219,22 @@ public class CandidatFrame extends JFrame {
         } catch(SQLException ex){
             ex.printStackTrace();
             JOptionPane.showMessageDialog(this,"Eroare la incarcarea Joburilor","Eroare",JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    private void aplicaLaJob(int idJob){
+        String sql ="INSERT INTO Aplicatii (id_job, id_candidat) VALUES (?,?)";
+
+        try(Connection conn = ConexiuneDB.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql)){
+            pstmt.setInt(1,idJob);
+            pstmt.setInt(2,idCandidat);
+            pstmt.executeUpdate();
+
+            JOptionPane.showMessageDialog(this,"Ai aplicat cu succes!","Succes",JOptionPane.INFORMATION_MESSAGE);
+        }
+        catch (SQLException ex){
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this,"Eroare la aplicare","Eroare",JOptionPane.ERROR_MESSAGE);
         }
     }
 }
