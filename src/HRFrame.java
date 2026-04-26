@@ -11,63 +11,54 @@ public class HRFrame extends JFrame {
 
     private JTable tabelJoburi;
     private DefaultTableModel modelTabelJoburi;
-
     private JTable tabelAplicatii;
     private DefaultTableModel modelTabelAplicatii;
-
     private JButton btnAdaugaJob;
-    private JButton btnRefresh;
+    private JButton btnStatistici;
+    private JTabbedPane tabbedPane;
+    private JTextField txtCautareCV;
 
     public HRFrame(int idCompanie) {
         this.idCompanie = idCompanie;
         setTitle("Panou de Control HR");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(600,600);
+        setSize(800,600);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10,10));
 
         JPanel panouSus = new JPanel(new BorderLayout(5,10));
-        panouSus.setLayout(new FlowLayout(FlowLayout.LEFT));
 
         String numeCompanie = getCompany();
         JLabel lblHeader = new JLabel("Companie: "+numeCompanie);
         lblHeader.setFont(new Font("Arial", Font.BOLD, 20));
-        lblHeader.setBorder(BorderFactory.createEmptyBorder(15,10,15,10));
-        panouSus.add(lblHeader,BorderLayout.NORTH);
+        lblHeader.setBorder(BorderFactory.createEmptyBorder(15,15,15,10));
+        panouSus.add(lblHeader,BorderLayout.WEST);
 
-        btnAdaugaJob = new JButton("Adauga Job Nou");
-        btnRefresh = new JButton("Refresh");
-        btnAdaugaJob.setFocusable(false);
+        JButton btnRefresh = new JButton("Refresh");
         btnRefresh.setFocusable(false);
+        JPanel panouRefresh = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 15));
+        panouRefresh.add(btnRefresh);
+        panouSus.add(panouRefresh, BorderLayout.EAST);
 
-        panouSus.add(btnAdaugaJob);
-        panouSus.add(btnRefresh);
         add(panouSus,BorderLayout.NORTH);
 
+        tabbedPane = new JTabbedPane();
+        tabbedPane.setFont(new Font("Arial", Font.BOLD, 15));
+
         JPanel panouJoburi = PanouJoburi();
+        tabbedPane.addTab("Management Joburi", panouJoburi);
+
         JPanel panouAplicatii = PanouAplicatii();
-        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT,panouJoburi,panouAplicatii);
-        splitPane.setDividerLocation(300);
-        splitPane.setOneTouchExpandable(true);
+        tabbedPane.addTab("Aplicatii & Candidati", panouAplicatii);
 
-        add(splitPane,BorderLayout.CENTER);
-
-        btnAdaugaJob.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e){
-                AdaugaJob dialog = new AdaugaJob(HRFrame.this,idCompanie);
-                dialog.setVisible(true);
-
-                if(dialog.aFostSalvat()){
-                    btnRefresh.doClick();
-                }
-            }
-        });
+        add(tabbedPane, BorderLayout.CENTER);
 
         btnRefresh.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e){
                 tabelJoburi.clearSelection();
+                if(txtCautareCV!=null)
+                    txtCautareCV.setText("");
                 incarcaJoburiDinDB();
                 incarcaAplicatiiDinDB();
             }
@@ -75,20 +66,33 @@ public class HRFrame extends JFrame {
     }
 
     private JPanel PanouJoburi(){
-        JPanel panou = new JPanel(new BorderLayout(5,5));
-        panou.setBorder(BorderFactory.createTitledBorder("Joburi"));
+        JPanel panou = new JPanel(new BorderLayout(10,10));
+        panou.setBorder(BorderFactory.createEmptyBorder(10,10,10,10));
+
+        JPanel panouActiuniSus = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        btnAdaugaJob = new JButton("Postează Job Nou");
+        btnAdaugaJob.setBackground(new Color(70, 130, 180));
+        btnAdaugaJob.setForeground(Color.WHITE);
+        btnAdaugaJob.setFocusable(false);
+
+        btnStatistici = new JButton("Dashboard Statistici");
+        btnStatistici.setFocusable(false);
+
+        panouActiuniSus.add(btnAdaugaJob);
+        panouActiuniSus.add(btnStatistici);
+        panou.add(panouActiuniSus, BorderLayout.NORTH);
 
         String[] coloane = {"ID","Titlu","Oras","Salariu Min", "Salariu Max"};
         modelTabelJoburi = new DefaultTableModel(coloane,0);
         tabelJoburi = new JTable(modelTabelJoburi);
-        //tabelJoburi.setRowSelectionAllowed(false);
-        //tabelJoburi.setCellSelectionEnabled(true);
+
         tabelJoburi.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         tabelJoburi.getTableHeader().setReorderingAllowed(false);
         tabelJoburi.getTableHeader().setResizingAllowed(false);
 
-        //Dimensiune Coloane
-        tabelJoburi.getColumnModel().getColumn(0).setPreferredWidth(50);
+        tabelJoburi.getColumnModel().getColumn(0).setMinWidth(0);
+        tabelJoburi.getColumnModel().getColumn(0).setMaxWidth(0);
+
         tabelJoburi.getColumnModel().getColumn(1).setPreferredWidth(250);
         tabelJoburi.getColumnModel().getColumn(2).setPreferredWidth(120);
         tabelJoburi.getColumnModel().getColumn(3).setPreferredWidth(90);
@@ -97,11 +101,44 @@ public class HRFrame extends JFrame {
         JScrollPane scrollPane = new JScrollPane(tabelJoburi);
         panou.add(scrollPane,BorderLayout.CENTER);
 
-        tabelJoburi.getSelectionModel().addListSelectionListener(e -> {
-           if(!e.getValueIsAdjusting()&&tabelJoburi.getSelectedRow()!=-1){
-               int idJob = (int) tabelJoburi.getValueAt(tabelJoburi.getSelectedRow(),0);
-               incarcaAplicatiiPentruJob(idJob);
+
+        JPanel panouJos = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton btnVeziCandidati = new JButton("Vezi Candidații pentru Jobul Selectat");
+        panouJos.add(btnVeziCandidati);
+        panou.add(panouJos, BorderLayout.SOUTH);
+
+        btnAdaugaJob.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e){
+                AdaugaJob dialog = new AdaugaJob(HRFrame.this,idCompanie);
+                dialog.setVisible(true);
+
+                if(dialog.aFostSalvat()){
+                    incarcaJoburiDinDB();
+                }
+            }
+        });
+
+        btnStatistici.addActionListener(new ActionListener() {
+           @Override
+           public void actionPerformed(ActionEvent e){
+               StatisticiHR dialog = new StatisticiHR(HRFrame.this,idCompanie);
+               dialog.setVisible(true);
            }
+        });
+
+        btnVeziCandidati.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e){
+            int rand = tabelJoburi.getSelectedRow();
+            if (rand == -1) {
+                JOptionPane.showMessageDialog(HRFrame.this, "Selectează un job din tabel!", "Atenție", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            int idJob = (int) tabelJoburi.getValueAt(rand, 0);
+            incarcaAplicatiiPentruJob(idJob);
+            tabbedPane.setSelectedIndex(1);
+            }
         });
 
         incarcaJoburiDinDB();
@@ -109,11 +146,11 @@ public class HRFrame extends JFrame {
     }
 
     private JPanel PanouAplicatii(){
-        JPanel panou = new JPanel(new BorderLayout(5,5));
-        panou.setBorder(BorderFactory.createTitledBorder("Aplicatii primite"));
+        JPanel panou = new JPanel(new BorderLayout(10,10));
+        panou.setBorder(BorderFactory.createEmptyBorder(10,10,10,10));
 
         JPanel panouSus = new JPanel();
-        panouSus.setLayout(new FlowLayout(FlowLayout.LEFT));
+        panouSus.setLayout(new FlowLayout(FlowLayout.LEFT,10,5));
         JButton btnVeziProfil = new JButton("Vezi Profil");
         JButton btnSchimbaStatus = new JButton("Schimba Status");
         JLabel lblCauta = new JLabel("Cauta abilitati:");
@@ -140,7 +177,10 @@ public class HRFrame extends JFrame {
         tabelAplicatii.getTableHeader().setReorderingAllowed(false);
         tabelAplicatii.getTableHeader().setResizingAllowed(false);
 
-        tabelAplicatii.getColumnModel().getColumn(0).setPreferredWidth(50);
+        tabelAplicatii.getColumnModel().getColumn(0).setMaxWidth(0);
+        tabelAplicatii.getColumnModel().getColumn(0).setMinWidth(0);
+        tabelAplicatii.getColumnModel().getColumn(0).setPreferredWidth(0);
+
         tabelAplicatii.getColumnModel().getColumn(1).setPreferredWidth(250);
         tabelAplicatii.getColumnModel().getColumn(2).setPreferredWidth(250);
         tabelAplicatii.getColumnModel().getColumn(3).setPreferredWidth(120);
@@ -191,7 +231,7 @@ public class HRFrame extends JFrame {
                 dialog.setVisible(true);
 
                 if(dialog.aFostSalvat()){
-                    btnRefresh.doClick();
+                    incarcaAplicatiiDinDB();
                 }
             }
         });

@@ -88,7 +88,7 @@ public class CandidatFrame extends JFrame {
         JPanel panouFiltre =  new JPanel(new FlowLayout(FlowLayout.LEFT, 15,5));
 
         txtCautaJob = new JTextField(15);
-        String[] orase ={"Remote","Bucuresti","Iasi","Baia Mare","Cluj","Satu Mare","Craiova","Constanta"};
+        String[] orase ={"Toate","Remote","Bucuresti","Iasi","Baia Mare","Cluj","Satu Mare","Craiova","Constanta"};
         comboOras = new JComboBox<>(orase);
         JButton btnFiltreaza = new JButton("Filtreaza");
         btnFiltreaza.setFocusable(false);
@@ -163,6 +163,15 @@ public class CandidatFrame extends JFrame {
             }
         });
 
+        btnFiltreaza.addActionListener(new ActionListener() {
+           @Override
+           public void actionPerformed(ActionEvent e) {
+               String cuvinteCheie = txtCautaJob.getText().trim();
+               String oras = (String)comboOras.getSelectedItem();
+               incarcaJoburiFiltrare(cuvinteCheie,oras);
+           }
+        });
+
         return panou;
     }
 
@@ -221,6 +230,44 @@ public class CandidatFrame extends JFrame {
             JOptionPane.showMessageDialog(this,"Eroare la incarcarea Joburilor","Eroare",JOptionPane.ERROR_MESSAGE);
         }
     }
+
+    private void incarcaJoburiFiltrare(String cuvinteCheie, String oras){
+        modelTabelJoburi.setRowCount(0);
+
+        String sql = "SELECT j.id_job,j.titlu,c.nume AS companie, j.oras,j.salariu_min "+
+                "FROM Joburi j INNER JOIN Companii c ON j.id_companie = c.id_companie "+
+                "WHERE (j.titlu LIKE ? OR c.nume LIKE ?)";
+        if(!oras.equals("Toate")){
+            sql += " AND j.oras = ?";
+        }
+        sql+=" ORDER BY j.id_job DESC";
+
+        try(Connection conn =ConexiuneDB.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql)){
+            String cautare = "%"+cuvinteCheie+"%";
+            pstmt.setString(1,cautare);
+            pstmt.setString(2,cautare);
+            if(!oras.equals("Toate")){
+                pstmt.setString(3,oras);
+            }
+
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                Object[] rand = {
+                        rs.getInt("id_job"),
+                        rs.getString("titlu"),
+                        rs.getString("companie"),
+                        rs.getString("oras"),
+                        rs.getInt("salariu_min")
+                };
+                modelTabelJoburi.addRow(rand);
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Eroare la filtrarea joburilor!", "Eroare DB", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     private void aplicaLaJob(int idJob){
         String sql ="INSERT INTO Aplicatii (id_job, id_candidat) VALUES (?,?)";
 

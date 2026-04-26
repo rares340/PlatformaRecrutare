@@ -97,3 +97,12 @@ id_companie int,
 foreign key (id_candidat) references Candidati(id_candidat) on delete cascade,
 foreign key (id_companie) references Companii(id_companie)
 );
+
+CREATE OR REPLACE VIEW StatisticiHR AS 
+SELECT j.id_companie,j.titlu AS nume_job, COUNT(a.id_aplicatie) AS total_candidati,
+    SUM(CASE WHEN a.status='Nou' THEN 1 ELSE 0 END) AS stadiu_nou,
+    SUM(CASE WHEN a.status='Interviu' THEN 1 ELSE 0 END) AS stadiu_interviu,
+    SUM(CASE WHEN a.status='Oferta' THEN 1 ELSE 0 END) AS stadiu_oferta,
+    SUM(CASE WHEN a.status='Respins' THEN 1 ELSE 0 END) AS stadiu_respins
+FROM Joburi j LEFT JOIN Aplicatii a ON j.id_job = a.id_job
+GROUP BY j.id_job, j.titlu, j.id_companie;
