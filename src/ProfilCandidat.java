@@ -1,11 +1,14 @@
 import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
 public class ProfilCandidat extends JDialog {
     private boolean aFostSalvat = false;
@@ -16,6 +19,9 @@ public class ProfilCandidat extends JDialog {
     private JTextField txtEmail;
     private JTextField txtTelefon;
     private JTextArea txtCV;
+
+    private JPanel panouCheckboxes;
+    private List<JCheckBox> listaCheckboxes = new ArrayList<>();
 
     public ProfilCandidat(JFrame parent,int idCandidat) {
         super(parent,"Profil Candidat",true);
@@ -42,14 +48,19 @@ public class ProfilCandidat extends JDialog {
         panouFormular.add(new JLabel("Telefon:"));
         panouFormular.add(txtTelefon);
 
+        JPanel panouMijloc = new JPanel(new BorderLayout(5, 10));
+        panouMijloc.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 15));
+        panouMijloc.add(creeazaZonaCompetente(), BorderLayout.NORTH);
+
         JPanel panouCV = new JPanel(new BorderLayout());
         panouCV.setBorder(BorderFactory.createEmptyBorder(0,15,10,15));
-        panouCV.add(new JLabel("CV: "));
+        panouCV.add(new JLabel("CV: "),BorderLayout.NORTH);
 
         txtCV = new JTextArea();
         txtCV.setLineWrap(true);
         txtCV.setWrapStyleWord(true);
         panouCV.add(new JScrollPane(txtCV),BorderLayout.CENTER);
+        panouMijloc.add(panouCV,BorderLayout.CENTER);
 
         JPanel panouButoane = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton btnSalveaza = new  JButton("Salveaza Modificarile");
@@ -61,7 +72,7 @@ public class ProfilCandidat extends JDialog {
         panouButoane.add(btnAnuleaza);
 
         add(panouFormular,BorderLayout.NORTH);
-        add(panouCV,BorderLayout.CENTER);
+        add(panouMijloc,BorderLayout.CENTER);
         add(panouButoane,BorderLayout.SOUTH);
 
         incarcaDateCurente();
@@ -82,49 +93,138 @@ public class ProfilCandidat extends JDialog {
     }
 
     private void incarcaDateCurente(){
-        String sql = "SELECT nume,prenume,email,telefon,cv_text FROM Candidati "+
-                "WHERE id_candidat = ?";
+        try (Connection conn = ConexiuneDB.getConnection()) {
 
-        try(Connection conn = ConexiuneDB.getConnection();
-            PreparedStatement pstmt = conn.prepareStatement(sql)){
-
-            pstmt.setInt(1,this.idCandidat);
-            ResultSet rs = pstmt.executeQuery();
-
-            if(rs.next()){
-                txtNume.setText(rs.getString("nume"));
-                txtPrenume.setText(rs.getString("prenume"));
-                txtEmail.setText(rs.getString("email"));
-                txtTelefon.setText(rs.getString("telefon"));
-                txtCV.setText(rs.getString("cv_text"));
+            // 1. Aducem datele personale
+            String sqlDate = "SELECT nume, prenume, email, telefon, cv_text FROM Candidati WHERE id_candidat = ?";
+            try (PreparedStatement pstmt = conn.prepareStatement(sqlDate)) {
+                pstmt.setInt(1, this.idCandidat);
+                ResultSet rs = pstmt.executeQuery();
+                if (rs.next()) {
+                    txtNume.setText(rs.getString("nume"));
+                    txtPrenume.setText(rs.getString("prenume"));
+                    txtEmail.setText(rs.getString("email"));
+                    txtTelefon.setText(rs.getString("telefon"));
+                    txtCV.setText(rs.getString("cv_text"));
+                }
             }
-        } catch (SQLException ex){
+
+            // 2. Aducem competențele pe care le avea deja bifate și le bifăm pe ecran!
+            String sqlComp = "SELECT id_competenta FROM CompetenteCandidati WHERE id_candidat = ?";
+            try (PreparedStatement pstmtComp = conn.prepareStatement(sqlComp)) {
+                pstmtComp.setInt(1, this.idCandidat);
+                ResultSet rsComp = pstmtComp.executeQuery();
+
+                Set<String> abilitatiBifate = new HashSet<>();
+                while (rsComp.next()) {
+                    abilitatiBifate.add(String.valueOf(rsComp.getInt("id_competenta")));
+                }
+
+                for (JCheckBox cb : listaCheckboxes) {
+                    if (abilitatiBifate.contains(cb.getName())) {
+                        cb.setSelected(true);
+                    }
+                }
+            }
+
+        } catch (SQLException ex) {
             ex.printStackTrace();
-            JOptionPane.showMessageDialog(this,"Eroare la incarcarea profilului","Eroare",JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Eroare la aducerea profilului!", "Eroare DB", JOptionPane.ERROR_MESSAGE);
         }
     }
 
+    private JPanel creeazaZonaCompetente(){
+        JPanel panouPrincipal = new JPanel(new BorderLayout(5, 5));
+        panouPrincipal.setBorder(BorderFactory.createTitledBorder("Abilitățile Mele:"));
+
+        JPanel panouFiltru = new JPanel(new BorderLayout());
+        panouFiltru.add(new JLabel("Caută abilitate: "), BorderLayout.WEST);
+        JTextField txtFiltru = new JTextField();
+        panouFiltru.add(txtFiltru, BorderLayout.CENTER);
+        panouPrincipal.add(panouFiltru, BorderLayout.NORTH);
+
+        panouCheckboxes = new JPanel(new GridLayout(0, 3));
+
+        String sql = "SELECT id_competenta, nume_competenta FROM Competente";
+        try (Connection conn = ConexiuneDB.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                JCheckBox cb = new JCheckBox(rs.getString("nume_competenta"));
+                cb.setName(String.valueOf(rs.getInt("id_competenta")));
+                listaCheckboxes.add(cb);
+                panouCheckboxes.add(cb);
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+
+        JScrollPane scroll = new JScrollPane(panouCheckboxes);
+        scroll.setPreferredSize(new Dimension(500, 120));
+        panouPrincipal.add(scroll, BorderLayout.CENTER);
+
+        txtFiltru.getDocument().addDocumentListener(new DocumentListener() {
+            public void insertUpdate(DocumentEvent e) { filtreaza(); }
+            public void removeUpdate(DocumentEvent e) { filtreaza(); }
+            public void changedUpdate(DocumentEvent e) { filtreaza(); }
+
+            private void filtreaza() {
+                String textCautat = txtFiltru.getText().toLowerCase().trim();
+                for (JCheckBox cb : listaCheckboxes) {
+                    cb.setVisible(cb.getText().toLowerCase().contains(textCautat));
+                }
+                panouCheckboxes.revalidate();
+                panouCheckboxes.repaint();
+            }
+        });
+
+        return panouPrincipal;
+    }
+
     private void salveazaDateProfil(){
-        String sql = "UPDATE Candidati SET nume = ?, prenume = ?, email =?, telefon = ?, cv_text = ? WHERE id_candidat = ? ";
+        try (Connection conn = ConexiuneDB.getConnection()) {
 
-        try(Connection conn = ConexiuneDB.getConnection();
-            PreparedStatement pstmt = conn.prepareStatement(sql)){
+            // Folosesc tranzacții ca să nu se salveze datele pe jumătate
+            conn.setAutoCommit(false);
 
-            pstmt.setString(1,txtNume.getText().trim());
-            pstmt.setString(2,txtPrenume.getText().trim());
-            pstmt.setString(3,txtEmail.getText().trim());
-            pstmt.setString(4,txtTelefon.getText().trim());
-            pstmt.setString(5,txtCV.getText().trim());
-            pstmt.setInt(6,this.idCandidat);
+            String sqlUpdate = "UPDATE Candidati SET nume=?, prenume=?, email=?, telefon=?, cv_text=? WHERE id_candidat=?";
+            try (PreparedStatement pstmt = conn.prepareStatement(sqlUpdate)) {
+                pstmt.setString(1, txtNume.getText().trim());
+                pstmt.setString(2, txtPrenume.getText().trim());
+                pstmt.setString(3, txtEmail.getText().trim());
+                pstmt.setString(4, txtTelefon.getText().trim());
+                pstmt.setString(5, txtCV.getText().trim());
+                pstmt.setInt(6, this.idCandidat);
+                pstmt.executeUpdate();
+            }
 
-            pstmt.executeUpdate();
+            String sqlDelete = "DELETE FROM CompetenteCandidati WHERE id_candidat = ?";
+            try (PreparedStatement pstmtDel = conn.prepareStatement(sqlDelete)) {
+                pstmtDel.setInt(1, this.idCandidat);
+                pstmtDel.executeUpdate();
+            }
+
+            String sqlInsert = "INSERT INTO CompetenteCandidati (id_candidat, id_competenta) VALUES (?, ?)";
+            try (PreparedStatement pstmtIns = conn.prepareStatement(sqlInsert)) {
+                for (JCheckBox cb : listaCheckboxes) {
+                    if (cb.isSelected()) {
+                        pstmtIns.setInt(1, this.idCandidat);
+                        pstmtIns.setInt(2, Integer.parseInt(cb.getName()));
+                        pstmtIns.addBatch();
+                    }
+                }
+                pstmtIns.executeBatch();
+            }
+
+            conn.commit(); // Confirm tranzacția
+            conn.setAutoCommit(true);
 
             aFostSalvat = true;
-            JOptionPane.showMessageDialog(this,"Profilul a fost salvat cu succes!","Succes",JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Profilul a fost actualizat cu succes!", "Succes", JOptionPane.INFORMATION_MESSAGE);
             dispose();
-        } catch (SQLException ex){
+
+        } catch (SQLException ex) {
             ex.printStackTrace();
-            JOptionPane.showMessageDialog(this,"Eroare la salvarea profilului","Eroare",JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Eroare la salvarea profilului!", "Eroare DB", JOptionPane.ERROR_MESSAGE);
         }
     }
 

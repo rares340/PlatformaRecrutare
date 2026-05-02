@@ -2,9 +2,9 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.sql.*;
+import java.util.*;
+import java.util.List;
 
 public class AdaugaJob extends JDialog {
     private boolean aFostSalvat=false;
@@ -15,11 +15,13 @@ public class AdaugaJob extends JDialog {
     private JTextField txtOras;
     private JTextField txtSalariuMin;
     private JTextField txtSalariuMax;
+    private JPanel panouCheckboxes;
+    private List<JCheckBox> listaCheckboxes = new ArrayList<>();
 
     public AdaugaJob(JFrame parent,int idCompanie){
         super(parent,"Adauga un Job Nou",true);
         this.idCompanieCurenta = idCompanie;
-        setSize(400,450);
+        setSize(500,700);
         setLocationRelativeTo(parent);
         setLayout(new BorderLayout(10,10));
 
@@ -54,8 +56,12 @@ public class AdaugaJob extends JDialog {
         panouButoane.add(btnSalveaza);
         panouButoane.add(btnAnuleaza);
 
+        JPanel panouMijloc = new JPanel(new BorderLayout(5, 10));
+        panouMijloc.add(new JScrollPane(creeazaZonaCompetente()), BorderLayout.NORTH);
+        panouMijloc.add(panouDescriere, BorderLayout.CENTER);
+
         add(panouFormular,BorderLayout.NORTH);
-        add(panouDescriere,BorderLayout.CENTER);
+        add(panouMijloc,BorderLayout.CENTER);
         add(panouButoane,BorderLayout.SOUTH);
 
         btnAnuleaza.addActionListener(new ActionListener() {
@@ -102,7 +108,7 @@ public class AdaugaJob extends JDialog {
         String sql = "INSERT INTO Joburi(id_companie,titlu,descriere,oras,salariu_min,salariu_max) VALUES(?,?,?,?,?,?)";
 
         try(Connection conn = ConexiuneDB.getConnection();
-            PreparedStatement pstmt=conn.prepareStatement(sql)){
+            PreparedStatement pstmt=conn.prepareStatement(sql,Statement.RETURN_GENERATED_KEYS)){
 
             pstmt.setInt(1,this.idCompanieCurenta);
             pstmt.setString(2, titlu);
@@ -112,6 +118,12 @@ public class AdaugaJob extends JDialog {
             pstmt.setInt(6, salMax);
 
             pstmt.executeUpdate();
+
+            ResultSet rsKeys = pstmt.getGeneratedKeys();
+            if (rsKeys.next()) {
+                int idJobNou = rsKeys.getInt(1);
+                salveazaCompetenteJob(idJobNou, conn);
+            }
 
             JOptionPane.showMessageDialog(this,"Jobul a fost postat cu succes!","Succes",JOptionPane.INFORMATION_MESSAGE);
             aFostSalvat = true;
@@ -124,5 +136,45 @@ public class AdaugaJob extends JDialog {
 
     public boolean aFostSalvat(){
         return aFostSalvat;
+    }
+
+    private JPanel creeazaZonaCompetente() {
+        JPanel panouPrincipal = new JPanel(new BorderLayout());
+        panouPrincipal.setBorder(BorderFactory.createTitledBorder("Cerințe Competențe:"));
+
+        panouCheckboxes = new JPanel(new GridLayout(0, 3));
+
+        String sql = "SELECT id_competenta, nume_competenta FROM Competente";
+
+        try (Connection conn = ConexiuneDB.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                JCheckBox cb = new JCheckBox(rs.getString("nume_competenta"));
+                cb.setName(String.valueOf(rs.getInt("id_competenta")));
+                listaCheckboxes.add(cb);
+                panouCheckboxes.add(cb);
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+
+        JScrollPane scroll = new JScrollPane(panouCheckboxes);
+        scroll.setPreferredSize(new Dimension(350, 100));
+        panouPrincipal.add(scroll, BorderLayout.CENTER);
+        return panouPrincipal;
+    }
+    private void salveazaCompetenteJob(int idJob, Connection conn)throws SQLException{
+        String sql ="INSERT INTO CompetenteJob (id_job,id_competenta) VALUES (?,?)";
+
+        try(PreparedStatement pstmt = conn.prepareStatement(sql)){
+            for(JCheckBox cb : listaCheckboxes){
+                if(cb.isSelected()){
+                    pstmt.setInt(1, idJob);
+                    pstmt.setInt(2,Integer.parseInt(cb.getName()));
+                    pstmt.addBatch();
+                }
+            }
+            pstmt.executeBatch();
+        }
     }
 }

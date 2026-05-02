@@ -26,3 +26,18 @@ INSERT INTO Aplicatii (id_job, id_candidat, status) VALUES
 (1, 1, 'Nou'),         -- Ion a aplicat la Java
 (2, 2, 'Interviu'),    -- Maria a aplicat la DBA
 (3, 2, 'Nou');         -- Maria a aplicat la Analist Financiar
+
+INSERT IGNORE INTO Competente (nume_competenta) VALUES ('Java'), ('SQL'), ('Python'), ('React'), ('Project Management'), ('Limba Engleza');
+INSERT IGNORE INTO Competente (nume_competenta) VALUES ('Java'), ('Python'), ('C++'), ('C#'), ('JavaScript'), ('TypeScript'), ('PHP'), ('Swift'), ('Kotlin'), ('Go'),
+
+-- Frontend & Backend Web
+('HTML'), ('CSS'), ('React'), ('Angular'), ('Vue.js'), ('Node.js'), ('Spring Boot'), ('Hibernate'), ('.NET'), ('Django'), ('Laravel'),
+
+-- Baze de date
+('MySQL'), ('PostgreSQL'), ('MongoDB'), ('Oracle DB'), ('Redis'), ('SQL Server'),
+
+-- DevOps, Cloud & Tools
+('Docker'), ('Kubernetes'), ('AWS'), ('Azure'), ('Google Cloud (GCP)'), ('Git'), ('CI/CD'), ('Linux'), ('Jira'),
+
+-- Metodologii & Soft Skills
+('Agile'), ('Scrum'), ('Project Management'), ('Problem Solving'), ('Limba Engleza'), ('Limba Franceza'), ('Limba Germana');

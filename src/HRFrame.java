@@ -169,7 +169,7 @@ public class HRFrame extends JFrame {
 
         panou.add(panouSus,BorderLayout.NORTH);
 
-        String[] coloane = {"ID","Nume Candidat","Job Aplicat","Data","Status"};
+        String[] coloane = {"ID","Nume Candidat","Job Aplicat","Data","Scor (%)","Status"};
         modelTabelAplicatii = new DefaultTableModel(coloane,0);
         tabelAplicatii = new JTable(modelTabelAplicatii);
 
@@ -181,10 +181,11 @@ public class HRFrame extends JFrame {
         tabelAplicatii.getColumnModel().getColumn(0).setMinWidth(0);
         tabelAplicatii.getColumnModel().getColumn(0).setPreferredWidth(0);
 
-        tabelAplicatii.getColumnModel().getColumn(1).setPreferredWidth(250);
-        tabelAplicatii.getColumnModel().getColumn(2).setPreferredWidth(250);
-        tabelAplicatii.getColumnModel().getColumn(3).setPreferredWidth(120);
-        tabelAplicatii.getColumnModel().getColumn(4).setPreferredWidth(90);
+        tabelAplicatii.getColumnModel().getColumn(1).setPreferredWidth(200);
+        tabelAplicatii.getColumnModel().getColumn(2).setPreferredWidth(200);
+        tabelAplicatii.getColumnModel().getColumn(3).setPreferredWidth(100);
+        tabelAplicatii.getColumnModel().getColumn(4).setPreferredWidth(70);
+        tabelAplicatii.getColumnModel().getColumn(5).setPreferredWidth(80);
 
         JScrollPane scrollPane = new JScrollPane(tabelAplicatii);
         panou.add(scrollPane,BorderLayout.CENTER);
@@ -263,21 +264,28 @@ public class HRFrame extends JFrame {
     private void incarcaAplicatiiDinDB(){
         modelTabelAplicatii.setRowCount(0);
 
-        String sql = "SELECT a.id_aplicatie,CONCAT(c.nume,' ',c.prenume) AS nume_complet, j.titlu, a.data_aplicarii, a.status " +
-                     "FROM Aplicatii a JOIN Candidati c ON a.id_candidat=c.id_candidat "+
-                     "JOIN Joburi j ON a.id_job=j.id_job WHERE j.id_companie = ? ORDER BY a.data_aplicarii DESC";
-
+        String sql = "SELECT a.id_aplicatie, CONCAT(c.nume,' ',c.prenume) AS nume_complet, j.titlu, a.data_aplicarii, a.status, " +
+                "COALESCE( " +
+                "   (SELECT COUNT(*) FROM CompetenteCandidati cc " +
+                "    JOIN CompetenteJob cj ON cc.id_competenta = cj.id_competenta " +
+                "    WHERE cc.id_candidat = a.id_candidat AND cj.id_job = a.id_job) " +
+                "   * 100.0 / " +
+                "   NULLIF((SELECT COUNT(*) FROM CompetenteJob WHERE id_job = a.id_job), 0), 0) AS scor_potrivire " +
+                "FROM Aplicatii a JOIN Candidati c ON a.id_candidat=c.id_candidat "+
+                "JOIN Joburi j ON a.id_job=j.id_job WHERE j.id_companie = ? ORDER BY a.data_aplicarii DESC";
         try(Connection conn = ConexiuneDB.getConnection();
             PreparedStatement pstmt = conn.prepareStatement(sql)){
 
             pstmt.setInt(1,this.idCompanie);
             ResultSet rs = pstmt.executeQuery();
             while(rs.next()){
+                int scor = Math.round(rs.getFloat("scor_potrivire"));
                 Object[] rand ={
                         rs.getInt("id_aplicatie"),
                         rs.getString("nume_complet"),
                         rs.getString("titlu"),
                         rs.getTimestamp("data_aplicarii"),
+                        scor+"%",
                         rs.getString("status")
                 };
                 modelTabelAplicatii.addRow(rand);
@@ -318,21 +326,32 @@ public class HRFrame extends JFrame {
     public void incarcaAplicatiiPentruJob(int idJobSelectat){
         modelTabelAplicatii.setRowCount(0);
 
-        String sql = "SELECT a.id_aplicatie, CONCAT(c.nume, ' ', c.prenume) AS nume_complet, j.titlu, a.data_aplicarii, a.status " +
+        String sql = "SELECT a.id_aplicatie, CONCAT(c.nume, ' ', c.prenume) AS nume_complet, j.titlu, a.data_aplicarii, a.status, " +
+                "COALESCE( " +
+                "(SELECT COUNT(*) FROM CompetenteCandidati cc " +
+                "JOIN CompetenteJob cj ON cc.id_competenta = cj.id_competenta " +
+                "WHERE cc.id_candidat = c.id_candidat AND cj.id_job = ?) " +
+                "* 100.0 / " +
+                "NULLIF((SELECT COUNT(*) FROM CompetenteJob WHERE id_job = ?), 0), 0) AS scor_potrivire " +
                 "FROM Aplicatii a JOIN Candidati c ON a.id_candidat=c.id_candidat "+
-                "JOIN Joburi j ON a.id_job=j.id_job WHERE a.id_job = ? ORDER BY a.data_aplicarii DESC";
-
+                "JOIN Joburi j ON a.id_job=j.id_job WHERE a.id_job = ? " +
+                "ORDER BY scor_potrivire DESC, a.data_aplicarii DESC";
         try(Connection conn = ConexiuneDB.getConnection();
             PreparedStatement pstmt = conn.prepareStatement(sql)){
+
             pstmt.setInt(1,idJobSelectat);
+            pstmt.setInt(2,idJobSelectat);
+            pstmt.setInt(3,idJobSelectat);
             ResultSet rs = pstmt.executeQuery();
 
             while(rs.next()){
+                int scor = Math.round(rs.getFloat("scor_potrivire"));
                 Object[] rand={
                         rs.getInt("id_aplicatie"),
                         rs.getString("nume_complet"),
                         rs.getString("titlu"),
                         rs.getTimestamp("data_aplicarii"),
+                        scor + "%",
                         rs.getString("status")
                 };
                 modelTabelAplicatii.addRow(rand);
@@ -346,9 +365,12 @@ public class HRFrame extends JFrame {
     private void cautaAplicatiiDupaCV(String cuvinteCheie){
         modelTabelAplicatii.setRowCount(0);
 
-        String sql = "SELECT a.id_aplicatie, CONCAT(c.nume, ' ',c.prenume) as nume_complet, j.titlu, a.data_aplicarii, a.status " +
-                "FROM Aplicatii a " +
-                "JOIN Candidati c ON a.id_candidat = c.id_candidat " +
+        String sql = "SELECT a.id_aplicatie, CONCAT(c.nume, ' ',c.prenume) as nume_complet, j.titlu, a.data_aplicarii, a.status, " +
+                "COALESCE((SELECT COUNT(*) FROM CompetenteCandidati cc " +
+                "JOIN CompetenteJob cj ON cc.id_competenta = cj.id_competenta " +
+                "WHERE cc.id_candidat = a.id_candidat AND cj.id_job = a.id_job) " +
+                "* 100.0 / NULLIF((SELECT COUNT(*) FROM CompetenteJob WHERE id_job = a.id_job), 0), 0) AS scor_potrivire " +
+                "FROM Aplicatii a JOIN Candidati c ON a.id_candidat = c.id_candidat " +
                 "JOIN Joburi j ON a.id_job = j.id_job " +
                 "WHERE j.id_companie = ? AND MATCH(c.cv_text) AGAINST(? IN BOOLEAN MODE) " +
                 "ORDER BY a.data_aplicarii DESC";
@@ -361,11 +383,13 @@ public class HRFrame extends JFrame {
             ResultSet rs = pstmt.executeQuery();
 
             while(rs.next()){
+                int scor = Math.round(rs.getFloat("scor_potrivire"));
                 Object[] rand={
                         rs.getInt("id_aplicatie"),
                         rs.getString("nume_complet"),
                         rs.getString("titlu"),
                         rs.getTimestamp("data_aplicarii"),
+                        scor+"%",
                         rs.getString("status")
                 };
                 modelTabelAplicatii.addRow(rand);
